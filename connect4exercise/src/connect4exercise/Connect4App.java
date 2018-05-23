@@ -47,83 +47,78 @@ public class Connect4App extends Application {
     private Pane discRoot = new Pane();
 
     // network part
+    private Socket socket;
+
     private Button startServerButton = new Button("Start Server");
     private Button connectToServerButton = new Button("Connect to Server");
     private TextField statusLabel = new TextField();
     private TextField gameOverLabel = new TextField();
-    private String messageStyle =  "; -fx-text-fill: white";
+    private String messageStyle = "; -fx-text-fill: white";
     public final int serverPortNumber = 1337;
     private TextField ipEntry = new TextField("192.168.1.168");
-    private TextField portEntry = new TextField(serverPortNumber+"");
+    private TextField portEntry = new TextField(serverPortNumber + "");
     private Label ipLabel = new Label("IP");
     private boolean gameOver = false;
     private Pane root;
 
     @Override
-    public void stop(){
+    public void stop() {
         System.out.println("app was closed...");
         // fill
     }
 
-    private void clientConnectToServer(){
+    private void clientConnectToServer() {
         System.out.println("connecting to server...");
-        Scanner mouseInput = new Scanner(System.in);
         try {
             String ip = InetAddress.getLocalHost().getHostAddress();
-            Socket socket = new Socket(ip, 5555);
-            PrintWriter pw = new PrintWriter(socket.getOutputStream(), true);
-            pw.println(mouseInput);
+            socket = new Socket(ip, 5555);
+            Thread thread = new Thread(new ClientServerThread(socket));
+            thread.start();
 
-            InputStream inputStream = socket.getInputStream();
-            Scanner scanner = new Scanner(inputStream);
-            scanner.nextInt();
-            // System.out.println(message);
         } catch (Exception e) {
 
         }
-        System.out.println("hej med dig");
-
     }
 
     private void startServer() {
         System.out.println("starting server...");
-        Scanner mouseInput = new Scanner(System.in);
         try {
             ServerSocket serverSocket = new ServerSocket(5555);
-            Socket socket = serverSocket.accept();
-            OutputStream outputStream = socket.getOutputStream();
-            PrintWriter printWriter = new PrintWriter(outputStream, true);
-            printWriter.println(mouseInput);
+            socket = serverSocket.accept();
+            Thread thread = new Thread(new ClientServerThread(socket));
+            thread.start();
 
-            Scanner scanner = new Scanner(socket.getInputStream());
-            scanner.nextInt();
-           //1 System.out.println(input);
+
         } catch (Exception e) {
-           // System.out.println(e.getMessage());
+
 
         }
-        System.out.println("hej med dig");
     }
 
 
-    public void receiveNetworkMove(int column){
+    public void receiveNetworkMove(int column) {
         Platform.runLater(() -> placeDisc(new Disc(redMove), column));
         // possibly add further code
     }
 
-    public void sendNetworkMove(int column){
+    public void sendNetworkMove(int column) {
         System.out.println("Sending move to network:  " + column);
-        // fill
+        try {
+            PrintWriter pw = new PrintWriter(socket.getOutputStream(), true);
+            pw.println(column);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     // Exercise: Call this method to display server status
-    public void setServerStatus(boolean isRunning, String hostAddress){
+    public void setServerStatus(boolean isRunning, String hostAddress) {
         Platform.runLater(() -> {
-            if(isRunning){
+            if (isRunning) {
                 statusLabel.setText("Server is Running ");
                 ipLabel.setText(hostAddress);
                 statusLabel.setStyle("-fx-background-color: cornflowerblue" + messageStyle);
-            }else{
+            } else {
                 statusLabel.setText("Server is OFF");
                 statusLabel.setStyle("-fx-background-color: darkgray" + messageStyle);
             }
@@ -131,15 +126,13 @@ public class Connect4App extends Application {
     }
 
     // Exercise: Call this method to display connection status
-    public void setConnectionStatus(boolean isConnected){
+    public void setConnectionStatus(boolean isConnected) {
         Platform.runLater(() -> {
-            if (isConnected)
-            {
+            if (isConnected) {
                 statusLabel.setText("Connected.");
                 statusLabel.setStyle("-fx-background-color: green" + messageStyle);
 
-            } else
-            {
+            } else {
                 statusLabel.setText("Not connected.");
                 statusLabel.setStyle("-fx-background-color: red" + messageStyle);
             }
@@ -162,9 +155,7 @@ public class Connect4App extends Application {
     }
 
 
-
-    private HBox makeNetworkPanel()
-    {
+    private HBox makeNetworkPanel() {
         HBox networkPanel = new HBox();
         ipEntry.setPromptText("add server ip");
         portEntry.setPromptText("add server port");
@@ -183,25 +174,22 @@ public class Connect4App extends Application {
     }
 
 
-
-    private RadioButton makeServerRadioButton(HBox networkPanel, ToggleGroup toggleGroup)
-    {
+    private RadioButton makeServerRadioButton(HBox networkPanel, ToggleGroup toggleGroup) {
         RadioButton serverOn = new RadioButton("Server");
         serverOn.setStyle("-fx-text-fill:white");
         serverOn.selectedProperty().addListener((observable, oldValue, newValue) -> {
-            if(newValue)
+            if (newValue)
                 toggleClientServer(networkPanel, newValue);
         });
         serverOn.setToggleGroup(toggleGroup);
         return serverOn;
     }
 
-    private RadioButton makeClientRadioButton(HBox networkPanel, ToggleGroup toggleGroup)
-    {
+    private RadioButton makeClientRadioButton(HBox networkPanel, ToggleGroup toggleGroup) {
         RadioButton clientOn = new RadioButton("Client");
         clientOn.setStyle("-fx-text-fill:white");
         clientOn.selectedProperty().addListener((observable, oldValue, newValue) -> {
-            if(newValue)
+            if (newValue)
                 toggleClientServer(networkPanel, !newValue);
         });
         clientOn.setToggleGroup(toggleGroup);
@@ -209,8 +197,7 @@ public class Connect4App extends Application {
     }
 
 
-    private void configureStatusLabel()
-    {
+    private void configureStatusLabel() {
         statusLabel.setTranslateY(ROWS * 5);
         statusLabel.setMinWidth(TILE_SIZE * (COLUMNS + 1));
         statusLabel.setMinHeight(30);
@@ -221,8 +208,7 @@ public class Connect4App extends Application {
         ipLabel.setStyle(messageStyle);
     }
 
-    private void configureGameOverLabel()
-    {
+    private void configureGameOverLabel() {
         gameOverLabel.setTranslateY(ROWS * 11);
         gameOverLabel.setMinWidth(TILE_SIZE * (COLUMNS + 1));
         gameOverLabel.setMinHeight(30);
@@ -232,9 +218,8 @@ public class Connect4App extends Application {
         ipLabel.setStyle(messageStyle);
     }
 
-    private void toggleClientServer(HBox networkPanel, Boolean isServer)
-    {
-        if(isServer){
+    private void toggleClientServer(HBox networkPanel, Boolean isServer) {
+        if (isServer) {
             ipEntry.setVisible(false);
 
             networkPanel.getChildren().add(startServerButton);
@@ -242,7 +227,7 @@ public class Connect4App extends Application {
             networkPanel.getChildren().remove(ipEntry);
             networkPanel.getChildren().remove(portEntry);
             networkPanel.getChildren().remove(connectToServerButton);
-        }else{
+        } else {
             ipEntry.setVisible(true);
             networkPanel.getChildren().remove(startServerButton);
             networkPanel.getChildren().remove(ipLabel);
@@ -253,8 +238,7 @@ public class Connect4App extends Application {
         }
     }
 
-    private void showGameOverLabel(String text)
-    {
+    private void showGameOverLabel(String text) {
         gameOverLabel.setText(text);
         root.getChildren().add(gameOverLabel);
     }
@@ -306,11 +290,10 @@ public class Connect4App extends Application {
             final int column = x;
 
             rect.setOnMouseClicked(e -> {
-                if(!gameOver)
-                {
+                if (!gameOver) {
                     placeDisc(new Disc(redMove), column);
                     sendNetworkMove(column);
-                }else {
+                } else {
                     System.out.println("Game over. No move.");
                 }
             });
@@ -412,6 +395,7 @@ public class Connect4App extends Application {
 
     private static class Disc extends Circle {
         private final boolean red;
+
         public Disc(boolean red) {
             super(TILE_SIZE / 2, red ? Color.RED : Color.YELLOW);
             this.red = red;
@@ -429,5 +413,33 @@ public class Connect4App extends Application {
 
     public static void main(String[] args) {
         launch(args);
+    }
+
+
+    class ClientServerThread implements Runnable {
+        private BufferedReader br;
+
+        public ClientServerThread(Socket socket) {
+            try {
+                br = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        @Override
+        public void run() {
+            try {
+                while (true) {
+                    if (br.ready()) {
+                        String msg = br.readLine();
+                        receiveNetworkMove(Integer.valueOf(msg));
+                        System.out.println("message: " + msg);
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 }
